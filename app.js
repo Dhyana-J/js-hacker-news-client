@@ -5,40 +5,59 @@ const NEWS_URL = 'https://api.hnpwa.com/v0/news/1.json';
 const CONTENT_URL = 'https://api.hnpwa.com/v0/item/@id.json';
 const container = document.querySelector('#root');
 
-const getData = (url)=>{
-  ajax.open('GET',url,false);
-  ajax.send();
-  return JSON.parse(ajax.response);
+function getData(url) {
+    ajax.open('GET', url, false);
+    ajax.send();
+    return JSON.parse(ajax.response);
 }
 
-const newsFeed = getData(NEWS_URL);
-const ul = document.createElement('ul');
+//기사 제목 목록 렌더링 코드
+function newsFeed() {
+    const newsList = [];
+    const newsFeed = getData(NEWS_URL);
+    const ul = document.createElement('ul');
 
-window.addEventListener('hashchange',function(){
-  const id = this.location.hash.substr(1);
-  const newsContent = getData(CONTENT_URL.replace('@id',id));
-  const title = document.createElement('h1');
+    newsList.push('<ul>');
 
-  title.innerHTML = newsContent.title;
-  content.appendChild(title);
-});
+    newsFeed.map((v) => {
+        newsList.push(`
+    <li>
+      <a href="#${v.id}">
+        ${v.title} (${v.comments_count})
+      </a>
+    </li>
+  `);
+    });
 
-newsFeed.reduce((ul,cur)=>{
+    newsList.push('</ul>');
 
-  const div = document.createElement('div');
-  const li = document.createElement('li');
-  const a = document.createElement('a');
+    container.innerHTML = newsList.join('');
+}
 
-  div.innerHTML = `
-  <li>
-    <a href="#${cur.id}">
-      ${cur.title} (${cur.comments_count})
-    </a>
-  </li>
-  `;
+//기사 내용 렌더링 코드
+function newsDetail() {
+    const id = location.hash.substr(1);
+    const newsContent = getData(CONTENT_URL.replace('@id', id));
+    const title = document.createElement('h1');
 
-  return ul.appendChild(div.firstElementChild);
-},ul);
+    container.innerHTML = `
+  <h1>${newsContent.title}</h1>
+  <div>
+    <a href="#">목록으로</a>
+  </div>
+`;
+}
 
-container.appendChild(ul);
-container.appendChild(content);
+function router() {
+    const routePath = location.hash;
+    if (routePath === '') {
+        //location.hash에 '#'만 들어있을 경우 빈 값을 반환한다.
+        newsFeed();
+    } else {
+        newsDetail();
+    }
+}
+
+window.addEventListener('hashchange', router);
+
+router();
