@@ -3,17 +3,35 @@
   "양이 늘어나도 복잡도가 늘어나지 않는 코드"
 */
 
-const ajax = new XMLHttpRequest();
+//type alias 설정
+//type에 대한 컨벤션은 보통 이렇게 대문자로 시작하는 카멜케이스를 쓴다.
+type Store = {
+    currentPage: number;
+    feeds: NewsFeed[]; //NewsFeed 유형의 데이터가 들어갈 배열을 의미
+};
+
+type NewsFeed = {
+    id: number;
+    comments_count: number;
+    url: string;
+    user: string;
+    time_ago: string;
+    points: number;
+    title: string;
+    read?: boolean; // ?를 붙이면 있을 수도 있고 없을 수도 있는 optional 속성이 된다.
+};
+
+const container: Element | null = document.querySelector('#root');
+const ajax: XMLHttpRequest = new XMLHttpRequest();
 const content = document.createElement('div');
 
 const NEWS_URL = 'https://api.hnpwa.com/v0/news/1.json';
 const CONTENT_URL = 'https://api.hnpwa.com/v0/item/@id.json';
-const container = document.querySelector('#root');
 
-let scrollY = 0; // scroll 위치 기억할 변수
+let scrollPosition: number = 0; // scroll 위치 기억할 변수
 
 // 공유되는 자원을 담을 객체 store
-const store = {
+const store: Store = {
     currentPage: 1,
     feeds: [],
 };
@@ -25,7 +43,7 @@ function getData(url) {
 }
 
 // 해당 글 읽음 여부 상태를 추가해주는 함수
-function makeFeed(feeds) {
+function makeFeeds(feeds) {
     for (let i = 0; i < feeds.length; i++) {
         feeds[i].read = false;
     }
@@ -33,9 +51,16 @@ function makeFeed(feeds) {
     return feeds;
 }
 
+function updateView(html) {
+    if (container) {
+        container.innerHTML = html;
+    } else {
+        console.error('최상위 컨테이너가 없어 UI 진행이 안돼요');
+    }
+}
 //기사 제목 목록 렌더링 코드
 function newsFeed() {
-    let newsFeed = store.feeds;
+    let newsFeed: NewsFeed[] = store.feeds;
     const newsList = [];
     let template = `
     <div class="bg-gray-600 min-h-screen">
@@ -62,7 +87,7 @@ function newsFeed() {
     </div>
   `;
 
-    if (newsFeed.length === 0) newsFeed = store.feeds = makeFeed(getData(NEWS_URL)); //JS에서는 = 를 연속으로 사용할 수 있다. 맨 오른쪽 데이터가 연쇄적으로 왼쪽 변수에 담긴다.
+    if (newsFeed.length === 0) newsFeed = store.feeds = makeFeeds(getData(NEWS_URL)); //JS에서는 = 를 연속으로 사용할 수 있다. 맨 오른쪽 데이터가 연쇄적으로 왼쪽 변수에 담긴다.
 
     for (let i = (store.currentPage - 1) * 10; i < store.currentPage * 10; i++) {
         if (newsFeed[i]) {
@@ -104,9 +129,9 @@ function newsFeed() {
         newsFeed[store.currentPage * 10] ? store.currentPage + 1 : store.currentPage,
     );
 
-    container.innerHTML = template;
+    updateView(template);
 
-    if (scrollY > 0) window.scrollTo(0, scrollY); //기존 스크롤 위치로 이동한다.
+    if (scrollPosition > 0) window.scrollTo(0, scrollPosition); //기존 스크롤 위치로 이동한다.
 }
 
 //기사 내용 렌더링 코드
@@ -172,8 +197,9 @@ function newsDetail() {
         return commentString.join('');
     }
 
-    container.innerHTML = template.replace('{{__comments__}}', makeComment(newsContent.comments));
-    scrollY = window.scrollY; //기존 스크롤 위치를 저장해둔다.
+    updateView(template);
+
+    scrollPosition = window.scrollY; //기존 스크롤 위치를 저장해둔다.
 }
 
 function router() {
