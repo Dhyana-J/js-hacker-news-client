@@ -15,6 +15,7 @@ let scrollY = 0; // scroll 위치 기억할 변수
 // 공유되는 자원을 담을 객체 store
 const store = {
     currentPage: 1,
+    feeds: [],
 };
 
 function getData(url) {
@@ -23,10 +24,19 @@ function getData(url) {
     return JSON.parse(ajax.response);
 }
 
+// 해당 글 읽음 여부 상태를 추가해주는 함수
+function makeFeed(feeds) {
+    for (let i = 0; i < feeds.length; i++) {
+        feeds[i].read = false;
+    }
+
+    return feeds;
+}
+
 //기사 제목 목록 렌더링 코드
 function newsFeed() {
+    let newsFeed = store.feeds;
     const newsList = [];
-    const newsFeed = getData(NEWS_URL);
     let template = `
     <div class="bg-gray-600 min-h-screen">
       <div class="bg-white text-xl">
@@ -52,11 +62,13 @@ function newsFeed() {
     </div>
   `;
 
+    if (newsFeed.length === 0) newsFeed = store.feeds = makeFeed(getData(NEWS_URL)); //JS에서는 = 를 연속으로 사용할 수 있다. 맨 오른쪽 데이터가 연쇄적으로 왼쪽 변수에 담긴다.
+
     for (let i = (store.currentPage - 1) * 10; i < store.currentPage * 10; i++) {
         if (newsFeed[i]) {
             newsList.push(`
             <div class="p-6 ${
-                newsFeed[i].read ? 'bg-red-500' : 'bg-white'
+                newsFeed[i].read ? 'bg-blue-500' : 'bg-white'
             } mt-6 rounded-lg shadow-md transition-colors duration-500 hover:bg-green-100">
             <div class="flex">
               <div class="flex-auto">
@@ -94,7 +106,7 @@ function newsFeed() {
 
     container.innerHTML = template;
 
-    if (scrollY > 0) window.scrollTo(0, scrollY);
+    if (scrollY > 0) window.scrollTo(0, scrollY); //기존 스크롤 위치로 이동한다.
 }
 
 //기사 내용 렌더링 코드
@@ -132,6 +144,13 @@ function newsDetail() {
     </div>
     `;
 
+    for (let i = 0; i < store.feeds.length; i++) {
+        if (store.feeds[i].id === Number(id)) {
+            store.feeds[i].read = true;
+            break;
+        }
+    }
+
     function makeComment(comments, called = 0) {
         const commentString = [];
 
@@ -154,7 +173,7 @@ function newsDetail() {
     }
 
     container.innerHTML = template.replace('{{__comments__}}', makeComment(newsContent.comments));
-    scrollY = window.scrollY;
+    scrollY = window.scrollY; //기존 스크롤 위치를 저장해둔다.
 }
 
 function router() {
