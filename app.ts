@@ -55,33 +55,54 @@ const store: Store = {
 };
 
 //상속은 class를 사용하는 방법과 mixin을 사용하는 방법 두 가지가 있다.
+//언어적으로 mixin은 직접적으로 지원해주지 않음. 코드 테크닉으로 전개되는 기법이다.
+
+/*
+ * 왜 굳이 믹스인을 쓰지?
+ * 상속을 유연하게 하기 위해 쓴다. (코드 변경 번거로움을 줄여줌)
+ * extend는 다중상속을 지원하지 않아서, 다중상속을 위해 쓴다.
+ * 결국, 코드베이스의 유연성이 얼마나 필요하냐에 따라 써도 되고 안써도 된다.
+ */
+
+//TS 공식문서에 있는 믹스인 관련 코드
+function applyApiMixins(targetClass: any, baseClasses: any[]): void {
+    baseClasses.forEach((baseClass) => {
+        Object.getOwnPropertyNames(baseClass.prototype).forEach((name) => {
+            const descriptor = Object.getOwnPropertyDescriptor(baseClass.prototype, name);
+
+            if (descriptor) {
+                Object.defineProperty(targetClass.prototype, name, descriptor);
+            }
+        });
+    });
+}
 
 class Api {
-    url: string;
-    ajax: XMLHttpRequest;
-    constructor(url: string) {
-        this.url = url;
-        this.ajax = new XMLHttpRequest();
-    }
-
-    protected getRequest<AjaxResponse>(): AjaxResponse {
-        this.ajax.open('GET', this.url, false);
-        this.ajax.send();
-        return JSON.parse(this.ajax.response);
+    getRequest<AjaxResponse>(url: string): AjaxResponse {
+        const ajax = new XMLHttpRequest();
+        ajax.open('GET', url, false);
+        ajax.send();
+        return JSON.parse(ajax.response);
     }
 }
 
-class NewsFeedApi extends Api {
+class NewsFeedApi {
     getData(): NewsFeed[] {
-        return this.getRequest<NewsFeed[]>();
+        return this.getRequest<NewsFeed[]>(NEWS_URL);
     }
 }
 
-class NewsDetailApi extends Api {
-    getData(): NewsDetail {
-        return this.getRequest<NewsDetail>();
+class NewsDetailApi {
+    getData(id: string): NewsDetail {
+        return this.getRequest<NewsDetail>(CONTENT_URL.replace('@id', id));
     }
 }
+
+//interface를 통해 Api 클래스를 사용해 믹스인을 적용시킨다는 것을 컴파일러에게 알려준다.
+interface NewsFeedApi extends Api {}
+interface NewsDetailApi extends Api {}
+applyApiMixins(NewsFeedApi, [Api]);
+applyApiMixins(NewsDetailApi, [Api]);
 
 // 해당 글 읽음 여부 상태를 추가해주는 함수
 function makeFeeds(feeds: NewsFeed[]): NewsFeed[] {
@@ -102,7 +123,7 @@ function updateView(html: string): void {
 }
 //기사 제목 목록 렌더링 코드
 function newsFeed(): void {
-    const api = new NewsFeedApi(NEWS_URL);
+    const api = new NewsFeedApi();
     let newsFeed: NewsFeed[] = store.feeds;
     const newsList = [];
     let template = `
@@ -182,8 +203,8 @@ function newsDetail(): void {
     scrollPosition = window.scrollY; //기존 스크롤 위치를 저장해둔다.
 
     const id = location.hash.substr(7);
-    const api = new NewsDetailApi(CONTENT_URL.replace('@id', id));
-    const newsContent = api.getData();
+    const api = new NewsDetailApi();
+    const newsContent = api.getData(id);
 
     let template = `
       <div class="bg-gray-600 min-h-screen pb-8">
