@@ -3,40 +3,42 @@
   "양이 늘어나도 복잡도가 늘어나지 않는 코드"
 */
 
-//type alias 설정
-//type에 대한 컨벤션은 보통 이렇게 대문자로 시작하는 카멜케이스를 쓴다.
-type Store = {
+//interface 설정
+//interface는 타입을 결합하거나 조합시키는 방식에서 typeAlias와 차이가 있다.
+//유니온타입 '|' 은 지원 안함
+
+interface Store {
     currentPage: number;
     feeds: NewsFeed[]; //NewsFeed 유형의 데이터가 들어갈 배열을 의미
-};
+}
 
-type News = {
-    id: number;
+interface News {
+    readonly id: number; //readonly 붙이면 코드에서 해당 값을 수정할 수 없다.
     time_ago: string;
     title: string;
     url: string;
     user: string;
     content: string;
-};
+}
 
 /*
  * & : intersection
  * News와 뒤 내용을 합쳐서 type alias를 만든다.
  */
-type NewsFeed = News & {
+interface NewsFeed extends News {
     comments_count: number;
     points: number;
     read?: boolean; // ?를 붙이면 있을 수도 있고 없을 수도 있는 optional 속성이 된다.
-};
+}
 
-type NewsDetail = News & {
+interface NewsDetail extends News {
     comments: NewsComment[];
-};
+}
 
-type NewsComment = News & {
+interface NewsComment extends News {
     comments: NewsComment[];
     level: number;
-};
+}
 
 const container: Element | null = document.querySelector('#root');
 const ajax: XMLHttpRequest = new XMLHttpRequest();
