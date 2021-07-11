@@ -10,20 +10,36 @@ type Store = {
     feeds: NewsFeed[]; //NewsFeed 유형의 데이터가 들어갈 배열을 의미
 };
 
-type NewsFeed = {
+type News = {
     id: number;
-    comments_count: number;
+    time_ago: string;
+    title: string;
     url: string;
     user: string;
-    time_ago: string;
+    content: string;
+};
+
+/*
+ * & : intersection
+ * News와 뒤 내용을 합쳐서 type alias를 만든다.
+ */
+type NewsFeed = News & {
+    comments_count: number;
     points: number;
-    title: string;
     read?: boolean; // ?를 붙이면 있을 수도 있고 없을 수도 있는 optional 속성이 된다.
+};
+
+type NewsDetail = News & {
+    comments: NewsComment[];
+};
+
+type NewsComment = News & {
+    comments: NewsComment[];
+    level: number;
 };
 
 const container: Element | null = document.querySelector('#root');
 const ajax: XMLHttpRequest = new XMLHttpRequest();
-const content = document.createElement('div');
 
 const NEWS_URL = 'https://api.hnpwa.com/v0/news/1.json';
 const CONTENT_URL = 'https://api.hnpwa.com/v0/item/@id.json';
@@ -36,14 +52,16 @@ const store: Store = {
     feeds: [],
 };
 
-function getData(url) {
+//generic
+function getData<AjaxResponse>(url: string): AjaxResponse {
     ajax.open('GET', url, false);
     ajax.send();
+
     return JSON.parse(ajax.response);
 }
 
 // 해당 글 읽음 여부 상태를 추가해주는 함수
-function makeFeeds(feeds) {
+function makeFeeds(feeds: NewsFeed[]): NewsFeed[] {
     for (let i = 0; i < feeds.length; i++) {
         feeds[i].read = false;
     }
@@ -51,7 +69,8 @@ function makeFeeds(feeds) {
     return feeds;
 }
 
-function updateView(html) {
+//return값 없으면 void
+function updateView(html: string): void {
     if (container) {
         container.innerHTML = html;
     } else {
@@ -59,7 +78,7 @@ function updateView(html) {
     }
 }
 //기사 제목 목록 렌더링 코드
-function newsFeed() {
+function newsFeed(): void {
     let newsFeed: NewsFeed[] = store.feeds;
     const newsList = [];
     let template = `
@@ -87,7 +106,7 @@ function newsFeed() {
     </div>
   `;
 
-    if (newsFeed.length === 0) newsFeed = store.feeds = makeFeeds(getData(NEWS_URL)); //JS에서는 = 를 연속으로 사용할 수 있다. 맨 오른쪽 데이터가 연쇄적으로 왼쪽 변수에 담긴다.
+    if (newsFeed.length === 0) newsFeed = store.feeds = makeFeeds(getData<NewsFeed[]>(NEWS_URL)); //JS에서는 = 를 연속으로 사용할 수 있다. 맨 오른쪽 데이터가 연쇄적으로 왼쪽 변수에 담긴다.
 
     for (let i = (store.currentPage - 1) * 10; i < store.currentPage * 10; i++) {
         if (newsFeed[i]) {
@@ -122,11 +141,11 @@ function newsFeed() {
     template = template.replace('{{__news_feed__}}', newsList.join(''));
     template = template.replace(
         '{{__prev_page__}}',
-        store.currentPage > 1 ? store.currentPage - 1 : 1,
+        String(store.currentPage > 1 ? store.currentPage - 1 : 1),
     );
     template = template.replace(
         '{{__next_page__}}',
-        newsFeed[store.currentPage * 10] ? store.currentPage + 1 : store.currentPage,
+        String(newsFeed[store.currentPage * 10] ? store.currentPage + 1 : store.currentPage),
     );
 
     updateView(template);
@@ -135,9 +154,9 @@ function newsFeed() {
 }
 
 //기사 내용 렌더링 코드
-function newsDetail() {
+function newsDetail(): void {
     const id = location.hash.substr(7);
-    const newsContent = getData(CONTENT_URL.replace('@id', id));
+    const newsContent = getData<NewsDetail>(CONTENT_URL.replace('@id', id));
     const title = document.createElement('h1');
 
     let template = `
@@ -176,33 +195,34 @@ function newsDetail() {
         }
     }
 
-    function makeComment(comments, called = 0) {
-        const commentString = [];
-
-        for (let i = 0; i < comments.length; i++) {
-            commentString.push(`
-            <div style="padding-left: ${called * 40}px;" class="mt-4">
-              <div class="text-gray-400">
-                <i class="fa fa-sort-up mr-2"></i>
-                <strong>${comments[i].user}</strong> ${comments[i].time_ago}
-              </div>
-              <p class="text-gray-700">${comments[i].content}</p>
-            </div>   
-            `);
-            if (comments[i].comments.length > 0) {
-                commentString.push(makeComment(comments[i].comments, called + 1));
-            }
-        }
-
-        return commentString.join('');
-    }
-
     updateView(template);
 
     scrollPosition = window.scrollY; //기존 스크롤 위치를 저장해둔다.
 }
 
-function router() {
+function makeComment(comments: NewsComment[]): string {
+    const commentString = [];
+
+    for (let i = 0; i < comments.length; i++) {
+        const comment: NewsComment = comments[i];
+        commentString.push(`
+          <div style="padding-left: ${comment.level}px;" class="mt-4">
+            <div class="text-gray-400">
+              <i class="fa fa-sort-up mr-2"></i>
+              <strong>${comment.user}</strong> ${comment.time_ago}
+            </div>
+            <p class="text-gray-700">${comment.content}</p>
+          </div>   
+          `);
+        if (comment.comments.length > 0) {
+            commentString.push(makeComment(comment.comments));
+        }
+    }
+
+    return commentString.join('');
+}
+
+function router(): void {
     const routePath = location.hash;
     if (routePath === '') {
         //location.hash에 '#'만 들어있을 경우 빈 값을 반환한다.
