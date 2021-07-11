@@ -54,12 +54,33 @@ const store: Store = {
     feeds: [],
 };
 
-//generic
-function getData<AjaxResponse>(url: string): AjaxResponse {
-    ajax.open('GET', url, false);
-    ajax.send();
+//상속은 class를 사용하는 방법과 mixin을 사용하는 방법 두 가지가 있다.
 
-    return JSON.parse(ajax.response);
+class Api {
+    url: string;
+    ajax: XMLHttpRequest;
+    constructor(url: string) {
+        this.url = url;
+        this.ajax = new XMLHttpRequest();
+    }
+
+    protected getRequest<AjaxResponse>(): AjaxResponse {
+        this.ajax.open('GET', this.url, false);
+        this.ajax.send();
+        return JSON.parse(this.ajax.response);
+    }
+}
+
+class NewsFeedApi extends Api {
+    getData(): NewsFeed[] {
+        return this.getRequest<NewsFeed[]>();
+    }
+}
+
+class NewsDetailApi extends Api {
+    getData(): NewsDetail {
+        return this.getRequest<NewsDetail>();
+    }
 }
 
 // 해당 글 읽음 여부 상태를 추가해주는 함수
@@ -81,6 +102,7 @@ function updateView(html: string): void {
 }
 //기사 제목 목록 렌더링 코드
 function newsFeed(): void {
+    const api = new NewsFeedApi(NEWS_URL);
     let newsFeed: NewsFeed[] = store.feeds;
     const newsList = [];
     let template = `
@@ -108,7 +130,7 @@ function newsFeed(): void {
     </div>
   `;
 
-    if (newsFeed.length === 0) newsFeed = store.feeds = makeFeeds(getData<NewsFeed[]>(NEWS_URL)); //JS에서는 = 를 연속으로 사용할 수 있다. 맨 오른쪽 데이터가 연쇄적으로 왼쪽 변수에 담긴다.
+    if (newsFeed.length === 0) newsFeed = store.feeds = makeFeeds(api.getData()); //JS에서는 = 를 연속으로 사용할 수 있다. 맨 오른쪽 데이터가 연쇄적으로 왼쪽 변수에 담긴다.
 
     for (let i = (store.currentPage - 1) * 10; i < store.currentPage * 10; i++) {
         if (newsFeed[i]) {
@@ -157,9 +179,11 @@ function newsFeed(): void {
 
 //기사 내용 렌더링 코드
 function newsDetail(): void {
+    scrollPosition = window.scrollY; //기존 스크롤 위치를 저장해둔다.
+
     const id = location.hash.substr(7);
-    const newsContent = getData<NewsDetail>(CONTENT_URL.replace('@id', id));
-    const title = document.createElement('h1');
+    const api = new NewsDetailApi(CONTENT_URL.replace('@id', id));
+    const newsContent = api.getData();
 
     let template = `
       <div class="bg-gray-600 min-h-screen pb-8">
@@ -198,8 +222,6 @@ function newsDetail(): void {
     }
 
     updateView(template);
-
-    scrollPosition = window.scrollY; //기존 스크롤 위치를 저장해둔다.
 }
 
 function makeComment(comments: NewsComment[]): string {
