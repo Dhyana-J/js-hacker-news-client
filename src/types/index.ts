@@ -3,9 +3,16 @@ import View from '../core/view';
 //interface는 타입을 결합하거나 조합시키는 방식에서 typeAlias와 차이가 있다.
 //유니온타입 '|' 은 지원 안함
 
-export interface Store {
+export interface NewsStore {
+    getAllFeeds: () => NewsFeed[];
+    getFeed: (position: number) => NewsFeed;
+    setFeeds: (feeds: NewsFeed[]) => void;
+    makeRead: (id: number) => void;
+    hasFeeds: boolean;
     currentPage: number;
-    feeds: NewsFeed[]; //NewsFeed 유형의 데이터가 들어갈 배열을 의미
+    numberOfFeed: number;
+    nextPage: number;
+    prevPage: number;
 }
 
 export interface News {

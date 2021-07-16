@@ -1,6 +1,6 @@
 import View from '../core/view';
 import { NewsFeedApi } from '../core/api';
-import { NewsFeed } from '../types';
+import { NewsFeed, NewsStore } from '../types';
 import { NEWS_URL } from '../config';
 
 const template = `
@@ -30,21 +30,25 @@ const template = `
 
 export default class NewsFeedView extends View {
     private api: NewsFeedApi;
-    private feeds: NewsFeed[];
-    constructor(containerId: string) {
+    private store: NewsStore;
+    constructor(containerId: string, store: NewsStore) {
         super(containerId, template);
-        this.api = new NewsFeedApi(NEWS_URL);
-        this.feeds = store.feeds;
 
-        if (this.feeds.length === 0) this.feeds = store.feeds = this.api.getData(); //JS에서는 = 를 연속으로 사용할 수 있다. 맨 오른쪽 데이터가 연쇄적으로 왼쪽 변수에 담긴다.
-        this.makeFeeds();
+        this.store = store;
+        this.api = new NewsFeedApi(NEWS_URL);
+
+        if (!this.store.hasFeeds) {
+            this.store.setFeeds(this.api.getData());
+        }
     }
 
-    render(): void {
-        store.currentPage = Number(location.hash.substring(7) || 1);
-        for (let i = (store.currentPage - 1) * 10; i < store.currentPage * 10; i++) {
-            if (this.feeds[i]) {
-                const { read, id, title, comments_count, user, points, time_ago } = this.feeds[i];
+    render = (page: string = '1'): void => {
+        this.store.currentPage = Number(page);
+        console.log(this.store.currentPage);
+        for (let i = (this.store.currentPage - 1) * 10; i < this.store.currentPage * 10; i++) {
+            if (this.store.getFeed(i)) {
+                const { read, id, title, comments_count, user, points, time_ago } =
+                    this.store.getFeed(i);
                 this.addHtml(`
                 <div class="p-6 ${
                     read ? 'bg-blue-500' : 'bg-white'
@@ -72,22 +76,8 @@ export default class NewsFeedView extends View {
         //여전히 코드의 중복이 많이 발생한다.
         // 이를 보완하기 위해 템플릿 라이브러리들이 많이 나와있음
         this.setTemplateData('news_feed', this.getHtml());
-        this.setTemplateData(
-            'prev_page',
-            String(store.currentPage > 1 ? store.currentPage - 1 : 1),
-        );
-        this.setTemplateData(
-            'next_page',
-            String(this.feeds[store.currentPage * 10] ? store.currentPage + 1 : store.currentPage),
-        );
-
+        this.setTemplateData('prev_page', String(this.store.prevPage));
+        this.setTemplateData('next_page', String(this.store.nextPage));
         this.updateView();
-    }
-
-    // 해당 글 읽음 여부 상태를 추가해주는 함수
-    makeFeeds(): void {
-        for (let i = 0; i < this.feeds.length; i++) {
-            this.feeds[i].read = false;
-        }
-    }
+    };
 }
