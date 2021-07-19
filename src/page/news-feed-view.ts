@@ -36,45 +36,49 @@ export default class NewsFeedView extends View {
 
         this.store = store;
         this.api = new NewsFeedApi(NEWS_URL);
-
-        if (!this.store.hasFeeds) {
-            this.store.setFeeds(this.api.getData());
-        }
     }
 
     render = (page: string = '1'): void => {
         this.store.currentPage = Number(page);
-        console.log(this.store.currentPage);
+        if (!this.store.hasFeeds) {
+            this.api.getDataWithPromise((feeds: NewsFeed[]) => {
+                this.store.setFeeds(feeds);
+                this.renderView();
+            });
+        }
+
+        this.renderView();
+    };
+
+    renderView = () => {
         for (let i = (this.store.currentPage - 1) * 10; i < this.store.currentPage * 10; i++) {
             if (this.store.getFeed(i)) {
                 const { read, id, title, comments_count, user, points, time_ago } =
                     this.store.getFeed(i);
                 this.addHtml(`
-                <div class="p-6 ${
-                    read ? 'bg-blue-500' : 'bg-white'
-                } mt-6 rounded-lg shadow-md transition-colors duration-500 hover:bg-green-100">
-                <div class="flex">
-                  <div class="flex-auto">
-                    <a href="#/show/${id}">${title}</a>  
-                  </div>
-                  <div class="text-center text-sm">
-                    <div class="w-10 text-white bg-green-300 rounded-lg px-0 py-2">${comments_count}</div>
-                  </div>
+              <div class="p-6 ${
+                  read ? 'bg-blue-500' : 'bg-white'
+              } mt-6 rounded-lg shadow-md transition-colors duration-500 hover:bg-green-100">
+              <div class="flex">
+                <div class="flex-auto">
+                  <a href="#/show/${id}">${title}</a>  
                 </div>
-                <div class="flex mt-3">
-                  <div class="grid grid-cols-3 text-sm text-gray-500">
-                    <div><i class="fas fa-user mr-1"></i>${user}</div>
-                    <div><i class="fas fa-heart mr-1"></i>${points}</div>
-                    <div><i class="far fa-clock mr-1"></i>${time_ago}</div>
-                  </div>  
+                <div class="text-center text-sm">
+                  <div class="w-10 text-white bg-green-300 rounded-lg px-0 py-2">${comments_count}</div>
                 </div>
-              </div>    
-            `);
+              </div>
+              <div class="flex mt-3">
+                <div class="grid grid-cols-3 text-sm text-gray-500">
+                  <div><i class="fas fa-user mr-1"></i>${user}</div>
+                  <div><i class="fas fa-heart mr-1"></i>${points}</div>
+                  <div><i class="far fa-clock mr-1"></i>${time_ago}</div>
+                </div>  
+              </div>
+            </div>    
+          `);
             }
         }
 
-        //여전히 코드의 중복이 많이 발생한다.
-        // 이를 보완하기 위해 템플릿 라이브러리들이 많이 나와있음
         this.setTemplateData('news_feed', this.getHtml());
         this.setTemplateData('prev_page', String(this.store.prevPage));
         this.setTemplateData('next_page', String(this.store.nextPage));
